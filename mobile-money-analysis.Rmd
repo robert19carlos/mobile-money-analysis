@@ -2,7 +2,7 @@
 title: "Time-Series Analysis and Anomaly Detection in Kenya’s Mobile Money Ecosystem (2007–2023)"
 author: "Robert Mbugua"
 date: "2026-01-03"
-output: html_document
+output: github_document
 ---
 
 ```{r setup, include=FALSE}
