@@ -1,0 +1,145 @@
+---
+title: "Time-Series Analysis and Anomaly Detection in Kenya’s Mobile Money Ecosystem (2007–2023)"
+author: "Robert Mbugua"
+date: "2026-01-03"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Introduction
+
+Mobile money systems play a central role in Kenya’s financial infrastructure.
+Understanding long-term trends and abnormal deviations in mobile money activity is critical for regulators, policymakers, and financial institutions.
+
+This project analyzes monthly mobile money agent data in Kenya from January 2007 to August 2023, focusing on growth trends, transaction volumes, values, and system-level anomalies using time-series analysis in R.
+
+## Load the dataset
+
+```{r load-data}
+library(tidyverse)
+library(lubridate)
+
+mobile_money <- read.csv("data/Mobile Payments.csv")
+
+head(mobile_money)
+
+str(mobile_money)
+
+```
+
+## Create a proper date column
+
+Create a date column from the given year and month columns
+
+```{r date-preprocessing}
+library(dplyr)
+mobile_money <- mobile_money %>%
+  mutate(date = ymd(paste(Year, Month, '01')),
+         total_accounts=as.numeric(Total.Registered.Mobile.Money.Accounts..Millions.),
+         volume=as.numeric(Total.Agent.Cash.in.Cash.Out..Volume.Million.),
+         value=as.numeric(Total.Agent.Cash.in.Cash.Out..Value.KSh.billions.)
+         )
+
+# drop unnecessary columns
+df <- select(mobile_money, date, total_accounts, volume, value, Active.Agents)
+
+# descriptive statistics for the data
+summary(df)
+```
+
+
+
+## Growth of Mobile Money Accounts
+
+
+```{r accounts-growth}
+ggplot(df, aes(x = date, y = total_accounts)) + 
+  geom_line(color='steelblue', linewidth = 1) + 
+  labs(
+    title = 'Growth of Registered Mobile Money Accounts in Kenya',
+    x = 'Year',
+    y = 'Number of Registered Accounts'
+  ) +
+  theme_minimal()
+```
+
+
+## Transaction Volume vs Value Over Time
+
+```{r volume-value}
+
+ggplot(df, aes(x = date)) + 
+  geom_line(aes(y = volume, color = 'Volume')) + 
+  geom_line(aes(y = value, color = 'Value (Billions KES)')) + 
+  labs(
+    title = 'Mobile Money Transaction Activity in Kenya',
+    x = 'Year',
+    y = 'Values'
+  ) + 
+  scale_color_manual(values = c('Volume' = 'darkgreen', 'Value (Billions KES)' = 'firebrick')) + 
+  theme_minimal()
+```
+
+
+
+
+## Detecting System-Level Anomlies (Shocks)
+
+These anomalies can be detected using month-to-month growth rates
+
+```{r anomaly-detection}
+df <- df %>% 
+  arrange(date) %>%
+  mutate(
+  value_growth = (value - lag(value)) / lag(value)
+)
+
+# create a threshold value 
+threshold <- mean(df$value_growth, na.rm=TRUE) + 
+              2 * sd(df$value_growth, na.rm=TRUE)
+              
+# detect anomalies
+anomalies <- df %>%
+  filter(value_growth > threshold)
+  
+anomalies %>% select(date, value_growth)
+```
+
+- 2007‑04‑01: Growth = 2.43 → This means in April 2007, the total mobile money transaction value more than doubled from March. Huge spike for the system at that time, probably reflecting early adoption surges.
+
+- 2007‑05‑01: Growth = 1.19 → May continued strong growth, up ~119% from April.
+
+- 2007‑06‑01: Growth = 0.49 → June still saw ~49% growth — still high, but starting to stabilize.
+
+These anomalies correspond to the very early adoption period of mobile money in Kenya.
+The spikes in April to June 2007 indicate rapid uptake of agent cash-in and cash-out services
+as the ecosystem scaled.
+
+## Visualizing Anomalous Periods
+
+```{r anomaly-plot}
+ggplot(df, aes(x = date, y = value_growth)) +
+  geom_line(color = "gray50") +
+  geom_point(data = anomalies, aes(x = date, y = value_growth), color = "red", size = 2) +
+  labs(
+    title = "Anomalous Growth in Mobile Money Transaction Value",
+    y = "Monthly Growth Rate",
+    x = "Year"
+  ) +
+  theme_minimal()
+```
+
+
+## 8. Interpretation
+
+## Findings
+
+The analysis reveals sustained long-term growth in mobile money adoption in Kenya,
+with distinct periods of abnormal transaction value growth.
+
+These anomalies likely correspond to external shocks such as economic disruptions,
+regulatory changes, or shifts in consumer behavior.
+The results highlight the resilience and scalability of Kenya’s mobile money system.
